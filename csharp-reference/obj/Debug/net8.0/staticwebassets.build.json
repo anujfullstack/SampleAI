@@ -1,0 +1,12 @@
+{
+  "Version": 1,
+  "Hash": "QKfdCKKGba/je83+W4peQh1TE5QveB28EHTjlHNEmpo=",
+  "Source": "NLToSQLApp",
+  "BasePath": "_content/NLToSQLApp",
+  "Mode": "Default",
+  "ManifestType": "Build",
+  "ReferencedProjectsConfiguration": [],
+  "DiscoveryPatterns": [],
+  "Assets": [],
+  "Endpoints": []
+}

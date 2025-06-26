@@ -1,0 +1,28 @@
+[
+  {
+    "ContainingType": "NLToSQLApp.Controllers.QueryController",
+    "Method": "AskAsync",
+    "RelativePath": "api/Query/ask",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "request",
+        "Type": "NLToSQLApp.DTOs.QueryRequest",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": [
+      {
+        "Type": "NLToSQLApp.DTOs.QueryResponse",
+        "MediaTypes": [
+          "text/plain",
+          "application/json",
+          "text/json"
+        ],
+        "StatusCode": 200
+      }
+    ]
+  }
+]
