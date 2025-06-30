@@ -47,11 +47,17 @@ const handleQuery = async () => {
   error.value = ''
   
   try {
-    const response = await axios.post('http://localhost:7008/api/AskAIPromptRunner', {
+    // Use proxy path instead of direct URL
+    const response = await axios.post('/api/AskAIPromptRunner', {
       ApplicationId: applicationId.value,
       EventId: eventId.value,
       UserId: userId.value,
       Query: query.value
+    }, {
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      timeout: 30000 // 30 second timeout
     })
     
     const responseData = response.data
@@ -79,7 +85,15 @@ const handleQuery = async () => {
     }
   } catch (err: any) {
     console.error('API Error:', err)
-    error.value = err.response?.data?.error || err.message || 'An error occurred while processing your query'
+    if (err.code === 'ECONNABORTED') {
+      error.value = 'Request timeout - please try again'
+    } else if (err.response) {
+      error.value = err.response?.data?.error || `Server error: ${err.response.status}`
+    } else if (err.request) {
+      error.value = 'Unable to connect to server. Please check if the API is running on localhost:7008'
+    } else {
+      error.value = err.message || 'An error occurred while processing your query'
+    }
   } finally {
     loading.value = false
   }
@@ -126,7 +140,7 @@ const handleSampleQuery = (sampleQuery: string) => {
           <div class="flex items-center space-x-4">
             <div class="hidden md:flex items-center space-x-2 text-sm text-slate-600">
               <div class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-              <span>Connected</span>
+              <span>API Ready</span>
             </div>
           </div>
         </div>
