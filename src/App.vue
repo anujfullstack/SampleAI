@@ -12,21 +12,29 @@ import SampleQueries from './components/SampleQueries.vue'
 interface QueryResult {
   data: any[]
   sql: string
-  tokenUsage?: {
-    prompt: number
-    completion: number
-    total: number
-  }
+  columns: string[]
+  success: boolean
+  error: string | null
+  summary: string | null
+  chartData: any
+  insights: any
 }
 
 const query = ref('')
-const projectId = ref(123)
+const applicationId = ref(1)
+const eventId = ref(1)
+const userId = ref('user123')
 const loading = ref(false)
 const error = ref('')
 const result = reactive<QueryResult>({
   data: [],
   sql: '',
-  tokenUsage: undefined
+  columns: [],
+  success: false,
+  error: null,
+  summary: null,
+  chartData: null,
+  insights: null
 })
 
 const handleQuery = async () => {
@@ -39,16 +47,39 @@ const handleQuery = async () => {
   error.value = ''
   
   try {
-    const response = await axios.post('https://localhost:56875/api/Query/ask', {
-      projectId: projectId.value,
-      query: query.value
+    const response = await axios.post('http://localhost:7008/api/AskAIPromptRunner', {
+      ApplicationId: applicationId.value,
+      EventId: eventId.value,
+      UserId: userId.value,
+      Query: query.value
     })
     
-    result.data = response.data.data
-    result.sql = response.data.sql
-    result.tokenUsage = response.data.tokenUsage
+    const responseData = response.data
+    
+    if (responseData.success) {
+      // Convert array data to object format for display
+      const convertedData = responseData.data.map((row: any[]) => {
+        const obj: any = {}
+        responseData.columns.forEach((column: string, index: number) => {
+          obj[column] = row[index]
+        })
+        return obj
+      })
+      
+      result.data = convertedData
+      result.sql = responseData.generatedSQL
+      result.columns = responseData.columns
+      result.success = responseData.success
+      result.error = responseData.error
+      result.summary = responseData.summary
+      result.chartData = responseData.chartData
+      result.insights = responseData.insights
+    } else {
+      error.value = responseData.error || 'Query execution failed'
+    }
   } catch (err: any) {
-    error.value = err.response?.data?.error || 'An error occurred while processing your query'
+    console.error('API Error:', err)
+    error.value = err.response?.data?.error || err.message || 'An error occurred while processing your query'
   } finally {
     loading.value = false
   }
@@ -57,7 +88,12 @@ const handleQuery = async () => {
 const clearResults = () => {
   result.data = []
   result.sql = ''
-  result.tokenUsage = undefined
+  result.columns = []
+  result.success = false
+  result.error = null
+  result.summary = null
+  result.chartData = null
+  result.insights = null
   error.value = ''
 }
 
@@ -115,7 +151,9 @@ const handleSampleQuery = (sampleQuery: string) => {
           <!-- Query Input Section -->
           <QueryInput
             v-model:query="query"
-            v-model:project-id="projectId"
+            v-model:application-id="applicationId"
+            v-model:event-id="eventId"
+            v-model:user-id="userId"
             :loading="loading"
             @submit="handleQuery"
             @clear="clearResults"
@@ -130,8 +168,10 @@ const handleSampleQuery = (sampleQuery: string) => {
           <!-- Results Section -->
           <ResultsDisplay 
             v-if="result.data.length > 0 && !loading" 
-            :data="result.data" 
-            :token-usage="result.tokenUsage" 
+            :data="result.data"
+            :columns="result.columns"
+            :summary="result.summary"
+            :insights="result.insights"
           />
 
           <!-- SQL Panel -->

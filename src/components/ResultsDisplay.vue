@@ -1,11 +1,9 @@
 <script setup lang="ts">
 interface Props {
   data: any[]
-  tokenUsage?: {
-    prompt: number
-    completion: number
-    total: number
-  }
+  columns: string[]
+  summary?: string | null
+  insights?: any
 }
 
 defineProps<Props>()
@@ -23,9 +21,23 @@ const formatValue = (value: any): string => {
       <h3 class="text-xl font-semibold text-slate-800">Query Results</h3>
       <div class="flex items-center gap-4">
         <span class="text-sm text-slate-600">{{ data.length }} results</span>
-        <div v-if="tokenUsage" class="text-xs text-slate-500 bg-slate-100 px-2 py-1 rounded">
-          Tokens: {{ tokenUsage.total }}
+        <div class="text-xs text-slate-500 bg-slate-100 px-2 py-1 rounded">
+          {{ columns.length }} columns
         </div>
+      </div>
+    </div>
+
+    <!-- Summary Section -->
+    <div v-if="summary" class="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+      <h4 class="text-sm font-semibold text-blue-800 mb-2">📊 Summary</h4>
+      <p class="text-sm text-blue-700">{{ summary }}</p>
+    </div>
+
+    <!-- Insights Section -->
+    <div v-if="insights" class="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+      <h4 class="text-sm font-semibold text-green-800 mb-2">💡 Insights</h4>
+      <div class="text-sm text-green-700">
+        <pre class="whitespace-pre-wrap">{{ JSON.stringify(insights, null, 2) }}</pre>
       </div>
     </div>
 
@@ -40,14 +52,14 @@ const formatValue = (value: any): string => {
       <table class="data-table">
         <thead>
           <tr>
-            <th v-for="column in Object.keys(data[0])" :key="column">
+            <th v-for="column in columns" :key="column">
               {{ column }}
             </th>
           </tr>
         </thead>
         <tbody>
           <tr v-for="(row, index) in data" :key="index" class="hover:bg-slate-50">
-            <td v-for="column in Object.keys(row)" :key="column">
+            <td v-for="column in columns" :key="column">
               {{ formatValue(row[column]) }}
             </td>
           </tr>
@@ -55,12 +67,21 @@ const formatValue = (value: any): string => {
       </table>
     </div>
 
-    <div v-if="tokenUsage" class="mt-4 p-4 bg-slate-50 rounded-lg">
-      <h4 class="text-sm font-medium text-slate-700 mb-2">Token Usage</h4>
-      <div class="flex gap-4 text-sm text-slate-600">
-        <span>Prompt: {{ tokenUsage.prompt }}</span>
-        <span>Completion: {{ tokenUsage.completion }}</span>
-        <span class="font-medium">Total: {{ tokenUsage.total }}</span>
+    <!-- Data Statistics -->
+    <div class="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div class="p-4 bg-blue-50 border border-blue-200 rounded-lg text-center">
+        <p class="text-sm font-medium text-blue-800">Total Records</p>
+        <p class="text-2xl font-bold text-blue-600">{{ data.length }}</p>
+      </div>
+
+      <div class="p-4 bg-green-50 border border-green-200 rounded-lg text-center">
+        <p class="text-sm font-medium text-green-800">Columns</p>
+        <p class="text-2xl font-bold text-green-600">{{ columns.length }}</p>
+      </div>
+
+      <div class="p-4 bg-purple-50 border border-purple-200 rounded-lg text-center">
+        <p class="text-sm font-medium text-purple-800">Data Points</p>
+        <p class="text-2xl font-bold text-purple-600">{{ data.length * columns.length }}</p>
       </div>
     </div>
   </div>

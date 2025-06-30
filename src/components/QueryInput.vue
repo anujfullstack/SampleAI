@@ -1,13 +1,17 @@
 <script setup lang="ts">
 interface Props {
   query: string
-  projectId: number
+  applicationId: number
+  eventId: number
+  userId: string
   loading: boolean
 }
 
 interface Emits {
   (e: 'update:query', value: string): void
-  (e: 'update:projectId', value: number): void
+  (e: 'update:applicationId', value: number): void
+  (e: 'update:eventId', value: number): void
+  (e: 'update:userId', value: string): void
   (e: 'submit'): void
   (e: 'clear'): void
 }
@@ -28,18 +32,48 @@ const emit = defineEmits<Emits>()
         </h3>
         <p class="text-sm text-slate-600 mt-1">Type your question in natural language</p>
       </div>
-      
-      <!-- Project ID Input -->
-      <div class="flex items-center space-x-2">
-        <label for="project-id" class="text-sm font-medium text-slate-700">
-          Project:
+    </div>
+
+    <!-- Configuration Inputs -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 p-4 bg-slate-50 rounded-lg">
+      <div>
+        <label for="application-id" class="block text-sm font-medium text-slate-700 mb-1">
+          Application ID
         </label>
         <input
-          id="project-id"
+          id="application-id"
           type="number"
-          :value="projectId"
-          @input="emit('update:projectId', parseInt(($event.target as HTMLInputElement).value))"
-          class="w-20 px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+          :value="applicationId"
+          @input="emit('update:applicationId', parseInt(($event.target as HTMLInputElement).value))"
+          class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+          :disabled="loading"
+        />
+      </div>
+      
+      <div>
+        <label for="event-id" class="block text-sm font-medium text-slate-700 mb-1">
+          Event ID
+        </label>
+        <input
+          id="event-id"
+          type="number"
+          :value="eventId"
+          @input="emit('update:eventId', parseInt(($event.target as HTMLInputElement).value))"
+          class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+          :disabled="loading"
+        />
+      </div>
+      
+      <div>
+        <label for="user-id" class="block text-sm font-medium text-slate-700 mb-1">
+          User ID
+        </label>
+        <input
+          id="user-id"
+          type="text"
+          :value="userId"
+          @input="emit('update:userId', ($event.target as HTMLInputElement).value)"
+          class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
           :disabled="loading"
         />
       </div>
@@ -52,7 +86,7 @@ const emit = defineEmits<Emits>()
           :value="query"
           @input="emit('update:query', ($event.target as HTMLTextAreaElement).value)"
           placeholder="Ask me anything about your data... 
-For example: 'Show me all participants interested in AI' or 'What are the most popular events?'"
+For example: 'List Top 20 latest added participants who are not deleted and whose first or last name starts with the letter A'"
           class="input-field h-32 resize-none pr-12"
           :disabled="loading"
         />

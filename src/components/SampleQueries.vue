@@ -11,10 +11,7 @@ const lastAskedQuery = ref('')
 const searchTerm = ref('')
 
 const sampleQueries = [
-  "List all participants interested in AI events",
-  "Show me participants from the Marketing group",
-  "Find all events with more than 5 interested participants",
-  "What are the most popular interests?",
+  "List Top 20 latest added participants who are not deleted and whose first or last name starts with the letter 'A', and who have both phone number and email having Application Id 1",
   "Show all participants from the 'Engineering' group who have Interest for both 'Cloud Computing' and 'DevOps' events",
   "List all participants who attended more than 2 events",
   "Which participants joined event where event date in between 1 june 2024 to 01 September 2024",
@@ -26,7 +23,11 @@ const sampleQueries = [
   "Who are the most active marketers interested in AI?",
   "Which participants from the Sales or Marketing group have attended an event in both June or September 2024?",
   "Give me the list of top 5 participants and count of events they've attended, sorted by most active",
-  "Give me participant emails grouped by interest and Group category for the AI Conference 2024"
+  "Give me participant emails grouped by interest and Group category for the AI Conference 2024",
+  "List all participants interested in AI events",
+  "Show me participants from the Marketing group",
+  "Find all events with more than 5 interested participants",
+  "What are the most popular interests?"
 ]
 
 const filteredQueries = computed(() => {
@@ -71,7 +72,7 @@ const clearLastAsked = () => {
       </div>
       <div class="p-3 bg-green-50 border border-green-200 rounded-lg">
         <p class="text-sm text-green-800 font-medium mb-2">✅ Recently Executed:</p>
-        <p class="text-xs text-green-700 font-mono bg-white/60 p-2 rounded border">
+        <p class="text-xs text-green-700 font-mono bg-white/60 p-2 rounded border line-clamp-2">
           "{{ lastAskedQuery }}"
         </p>
         <button 
@@ -121,7 +122,7 @@ const clearLastAsked = () => {
         >
           <div class="flex items-start justify-between">
             <div class="flex-1 min-w-0 pr-2">
-              <p class="text-sm text-slate-700 group-hover:text-blue-700 transition-colors leading-relaxed">
+              <p class="text-sm text-slate-700 group-hover:text-blue-700 transition-colors leading-relaxed line-clamp-2">
                 {{ query }}
               </p>
             </div>
@@ -164,19 +165,19 @@ const clearLastAsked = () => {
       <ul class="space-y-2 text-xs text-slate-600">
         <li class="flex items-start">
           <span class="text-blue-500 mr-2">•</span>
-          <span>Be specific with dates and numbers</span>
+          <span>Be specific with participant criteria</span>
         </li>
         <li class="flex items-start">
           <span class="text-blue-500 mr-2">•</span>
-          <span>Use group names like 'Marketing', 'Sales'</span>
+          <span>Use date ranges for time-based queries</span>
         </li>
         <li class="flex items-start">
           <span class="text-blue-500 mr-2">•</span>
-          <span>Ask for counts, averages, or top results</span>
+          <span>Ask for counts, top results, or groupings</span>
         </li>
         <li class="flex items-start">
           <span class="text-blue-500 mr-2">•</span>
-          <span>Try combining multiple conditions</span>
+          <span>Combine multiple conditions for complex queries</span>
         </li>
       </ul>
     </div>
