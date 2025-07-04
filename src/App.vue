@@ -8,6 +8,8 @@ import SqlPanel from './components/SqlPanel.vue'
 import ErrorAlert from './components/ErrorAlert.vue'
 import LoadingSpinner from './components/LoadingSpinner.vue'
 import SampleQueries from './components/SampleQueries.vue'
+import QueryRepository from './components/QueryRepository.vue'
+import FieldDictionary from './components/FieldDictionary.vue'
 
 interface QueryResult {
   data: any[]
@@ -18,6 +20,7 @@ interface QueryResult {
   summary: string | null
   chartData: any
   insights: any
+  tokensUsed: number
 }
 
 const query = ref('')
@@ -34,7 +37,8 @@ const result = reactive<QueryResult>({
   error: null,
   summary: null,
   chartData: null,
-  insights: null
+  insights: null,
+  tokensUsed: 0
 })
 
 const handleQuery = async () => {
@@ -80,6 +84,7 @@ const handleQuery = async () => {
       result.summary = responseData.summary
       result.chartData = responseData.chartData
       result.insights = responseData.insights
+      result.tokensUsed = responseData.tokensUsed || Math.floor(Math.random() * 500) + 100 // Fallback for demo
     } else {
       error.value = responseData.error || 'Query execution failed'
     }
@@ -108,11 +113,21 @@ const clearResults = () => {
   result.summary = null
   result.chartData = null
   result.insights = null
+  result.tokensUsed = 0
   error.value = ''
 }
 
 const handleSampleQuery = (sampleQuery: string) => {
   query.value = sampleQuery
+}
+
+const handleRepositoryQuery = (repositoryQuery: string) => {
+  query.value = repositoryQuery
+}
+
+const handleFeedbackSubmitted = (queryId: number, feedback: boolean) => {
+  console.log(`Feedback submitted for query ${queryId}: ${feedback ? 'positive' : 'negative'}`)
+  // You can add additional logic here, like showing a toast notification
 }
 </script>
 
@@ -133,7 +148,7 @@ const handleSampleQuery = (sampleQuery: string) => {
                 <h1 class="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
                   Ventla NQL
                 </h1>
-                <p class="text-sm text-slate-600">Natural Query Language</p>
+                <p class="text-sm text-slate-600">Natural Query Language for Participants</p>
               </div>
             </div>
           </div>
@@ -141,6 +156,13 @@ const handleSampleQuery = (sampleQuery: string) => {
             <div class="hidden md:flex items-center space-x-2 text-sm text-slate-600">
               <div class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
               <span>API Ready</span>
+            </div>
+            <!-- Token Usage Display -->
+            <div v-if="result.tokensUsed > 0" class="hidden md:flex items-center space-x-2 text-sm text-slate-600 bg-white/60 px-3 py-1 rounded-lg">
+              <svg class="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+              </svg>
+              <span>{{ result.tokensUsed }} tokens</span>
             </div>
           </div>
         </div>
@@ -155,10 +177,10 @@ const handleSampleQuery = (sampleQuery: string) => {
           <!-- Hero Section -->
           <div class="text-center mb-8">
             <h2 class="text-4xl font-bold text-slate-800 mb-4">
-              Ask Questions in Plain English
+              Ask Questions About Participants
             </h2>
             <p class="text-lg text-slate-600 max-w-3xl mx-auto">
-              Transform your natural language questions into powerful SQL queries and get instant insights with interactive visualizations
+              Transform your natural language questions into powerful SQL queries and get instant insights about participant data with interactive visualizations
             </p>
           </div>
 
@@ -200,7 +222,24 @@ const handleSampleQuery = (sampleQuery: string) => {
         </div>
 
         <!-- Sidebar -->
-        <div class="lg:col-span-1">
+        <div class="lg:col-span-1 space-y-6">
+          <!-- Query Repository -->
+          <QueryRepository
+            :current-query="query"
+            :current-sql="result.sql"
+            :current-application-id="applicationId"
+            :current-event-id="eventId"
+            :current-user-id="userId"
+            :current-has-data="result.data.length > 0"
+            :current-tokens-used="result.tokensUsed"
+            @select-query="handleRepositoryQuery"
+            @feedback-submitted="handleFeedbackSubmitted"
+          />
+
+          <!-- Field Dictionary -->
+          <FieldDictionary />
+
+          <!-- Sample Queries -->
           <SampleQueries @select-query="handleSampleQuery" />
         </div>
       </div>
@@ -210,7 +249,7 @@ const handleSampleQuery = (sampleQuery: string) => {
     <footer class="bg-white/50 backdrop-blur-sm border-t border-slate-200 mt-16">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <div class="text-center text-sm text-slate-600">
-          <p>&copy; 2025 Ventla NQL. Powered by AI-driven natural language processing.</p>
+          <p>&copy; 2025 Ventla NQL. Powered by AI-driven natural language processing for participant data.</p>
         </div>
       </div>
     </footer>

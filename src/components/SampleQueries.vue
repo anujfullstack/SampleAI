@@ -9,8 +9,14 @@ const emit = defineEmits<Emits>()
 
 const lastAskedQuery = ref('')
 const searchTerm = ref('')
+const isSearching = ref(false)
 
 const sampleQueries = [
+  "List Top 10 all active participants who have provided both an email and a phone number",
+  "Fetch top 10 participants who email is Gmail and who are not deleted and have both email and phone number with FirstName,LastName,Email,Phone Number",
+  "Show top 10 participants from the Participant table who are not deleted, have a non-empty LinkedIn profile URL, a valid FirstName and a Valid Email",
+  "Give me a top 10 maximum count of Non deleted Participants in Each ApplicationInstanceId",
+  "Retrieve top 10 participants whose email contains 'outlook' and are active (not deleted)",
   "List Top 20 latest added participants who are not deleted and whose first or last name starts with the letter 'A', and who have both phone number and email having Application Id 1",
   "Show all participants from the 'Engineering' group who have Interest for both 'Cloud Computing' and 'DevOps' events",
   "List all participants who attended more than 2 events",
@@ -46,6 +52,13 @@ const selectQuery = (query: string) => {
 
 const clearLastAsked = () => {
   lastAskedQuery.value = ''
+}
+
+const handleSearch = () => {
+  isSearching.value = true
+  setTimeout(() => {
+    isSearching.value = false
+  }, 300)
 }
 </script>
 
@@ -96,19 +109,30 @@ const clearLastAsked = () => {
           </svg>
           Sample Queries
         </h3>
-        <p class="text-xs text-slate-600 mb-3">Click any query to try it instantly</p>
+        
+        <!-- NQL Info Banner -->
+        <div class="p-3 bg-blue-50 border border-blue-200 rounded-lg mb-3">
+          <p class="text-sm text-blue-800">
+            <strong>💡 NQL is for Participants only</strong><br>
+            These queries work with participant data. Click any query to try it instantly.
+          </p>
+        </div>
         
         <!-- Search Box -->
         <div class="relative">
           <input
             v-model="searchTerm"
+            @input="handleSearch"
             type="text"
             placeholder="Search queries..."
             class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none pl-8"
           />
-          <svg class="w-4 h-4 text-slate-400 absolute left-2.5 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg v-if="!isSearching" class="w-4 h-4 text-slate-400 absolute left-2.5 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
           </svg>
+          <div v-else class="absolute left-2.5 top-2.5">
+            <div class="loading-spinner w-4 h-4 border-slate-400"></div>
+          </div>
         </div>
       </div>
 
@@ -178,6 +202,10 @@ const clearLastAsked = () => {
         <li class="flex items-start">
           <span class="text-blue-500 mr-2">•</span>
           <span>Combine multiple conditions for complex queries</span>
+        </li>
+        <li class="flex items-start">
+          <span class="text-blue-500 mr-2">•</span>
+          <span>Save successful queries to your repository</span>
         </li>
       </ul>
     </div>
