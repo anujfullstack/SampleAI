@@ -212,31 +212,43 @@ const executeQuery = (dbPath, sql) => {
   })
 }
 
-// API endpoint
-app.post('https://localhost:56875/api/Query/ask', async (req, res) => {
+// API endpoint - Fixed to match frontend request path
+app.post('/api/AskAIPromptRunner', async (req, res) => {
   try {
-    const { projectId, query } = req.body
+    const { ApplicationId, EventId, UserId, Query } = req.body
     
-    if (!projectId || !query) {
-      return res.status(400).json({ error: 'projectId and query are required' })
+    if (!ApplicationId || !Query) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'ApplicationId and Query are required' 
+      })
     }
     
-    // In a real implementation, this would download from Azure File Share
-    const dbPath = path.join(__dirname, `project_${projectId}.db`)
+    // Use ApplicationId as projectId for database lookup
+    const dbPath = path.join(__dirname, `project_${ApplicationId}.db`)
     
     if (!fs.existsSync(dbPath)) {
-      return res.status(404).json({ error: `Database for project ${projectId} not found` })
+      return res.status(404).json({ 
+        success: false,
+        error: `Database for project ${ApplicationId} not found` 
+      })
     }
     
     // Extract schema
     const schema = await extractSchema(dbPath)
     
     // Generate SQL query
-    const sql = await generateSQLQuery(schema, query)
+    const sql = await generateSQLQuery(schema, Query)
     console.log('Generated SQL:', sql)
     
     // Execute query
     const data = await executeQuery(dbPath, sql)
+    
+    // Extract column names from the first row
+    const columns = data.length > 0 ? Object.keys(data[0]) : []
+    
+    // Convert data to array format expected by frontend
+    const arrayData = data.map(row => columns.map(col => row[col]))
     
     // Simulate token usage
     const tokenUsage = {
@@ -246,16 +258,39 @@ app.post('https://localhost:56875/api/Query/ask', async (req, res) => {
     }
     tokenUsage.total = tokenUsage.prompt + tokenUsage.completion
     
+    // Generate summary and insights
+    const summary = `Found ${data.length} records matching your query about participants.`
+    const insights = data.length > 0 ? [
+      `Total records: ${data.length}`,
+      `Columns: ${columns.join(', ')}`,
+      `Query executed successfully`
+    ] : ['No data found for this query']
+    
     res.json({
-      data,
-      sql,
-      tokenUsage,
-      schema: Object.keys(schema)
+      success: true,
+      data: arrayData,
+      columns,
+      generatedSQL: sql,
+      summary,
+      insights,
+      tokensUsed: tokenUsage.total,
+      error: null,
+      chartData: null
     })
     
   } catch (error) {
     console.error('Error processing query:', error)
-    res.status(500).json({ error: 'Internal server error: ' + error.message })
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error: ' + error.message,
+      data: [],
+      columns: [],
+      generatedSQL: '',
+      summary: null,
+      insights: null,
+      tokensUsed: 0,
+      chartData: null
+    })
   }
 })
 
