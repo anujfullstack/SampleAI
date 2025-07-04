@@ -15,6 +15,10 @@ builder.Services.AddScoped<IFileService, FileService>();
 builder.Services.AddScoped<ISqliteSchemaService, SqliteSchemaService>();
 builder.Services.AddScoped<IOpenAiService, OpenAiService>();
 
+// Register SavedAINLQ services
+builder.Services.AddScoped<ISavedAINLQService, SavedAINLQService>();
+builder.Services.AddScoped<ITokenUsageService, TokenUsageService>(); // Replace with your actual implementation
+
 // Add CORS
 builder.Services.AddCors(options =>
 {
