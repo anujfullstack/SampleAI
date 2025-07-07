@@ -2,6 +2,8 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using NLToSQLApp.Models;
 using NLToSQLApp.Services;
+using MeetApp.AzureOpenAIHub.DataManager;
+using MeetApp.AzureOpenAIHub.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -16,6 +18,7 @@ builder.Services.AddScoped<ISqliteSchemaService, SqliteSchemaService>();
 builder.Services.AddScoped<IOpenAiService, OpenAiService>();
 
 // Register SavedAINLQ services
+builder.Services.AddScoped<SavedAINLQDataManagerHelper>();
 builder.Services.AddScoped<ISavedAINLQService, SavedAINLQService>();
 builder.Services.AddScoped<ITokenUsageService, TokenUsageService>(); // Replace with your actual implementation
 
