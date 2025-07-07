@@ -1,22 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import axios from 'axios'
-
-interface SavedQuery {
-  id: number
-  label: string
-  query: string
-  sql: string
-  applicationId: number
-  eventId: number
-  userId: string
-  hasData: boolean
-  thumbsUp: boolean | null
-  tokensUsed: number
-  createdAt: string
-  lastUsed: string | null
-  useCount: number
-}
+import { savedQueriesService, type SavedQuery, type SaveQueryRequest } from '../services/savedQueriesService'
 
 interface Props {
   currentQuery?: string
@@ -42,7 +26,7 @@ const showSaveDialog = ref(false)
 const showRepository = ref(false)
 const loading = ref(false)
 const searchTerm = ref('')
-const filterBy = ref('all') // all, successful, failed, recent
+const filterBy = ref('all') // all, successful, failed, recent, liked, disliked
 
 // Save dialog state
 const saveLabel = ref('')
@@ -57,8 +41,8 @@ const filteredQueries = computed(() => {
     const search = searchTerm.value.toLowerCase()
     filtered = filtered.filter(q => 
       q.label.toLowerCase().includes(search) ||
-      q.query.toLowerCase().includes(search) ||
-      q.sql.toLowerCase().includes(search)
+      q.nqlQuestion.toLowerCase().includes(search) ||
+      q.generatedSQL.toLowerCase().includes(search)
     )
   }
 
@@ -100,17 +84,15 @@ const repositoryStats = computed(() => {
 
 // Methods
 const loadSavedQueries = async () => {
+  if (!props.currentUserId) return
+  
   try {
     loading.value = true
-    // In a real app, this would call your API
-    // const response = await axios.get('/api/saved-queries')
-    // savedQueries.value = response.data
-    
-    // For demo, load from localStorage
-    const saved = localStorage.getItem('savedQueries')
-    if (saved) {
-      savedQueries.value = JSON.parse(saved)
-    }
+    const response = await savedQueriesService.getUserQueries(props.currentUserId, {
+      applicationId: props.currentApplicationId,
+      pageSize: 100 // Get more queries for better UX
+    })
+    savedQueries.value = response.data
   } catch (error) {
     console.error('Failed to load saved queries:', error)
   } finally {
@@ -119,35 +101,29 @@ const loadSavedQueries = async () => {
 }
 
 const saveCurrentQuery = async () => {
-  if (!saveLabel.value.trim() || !props.currentQuery || !props.currentSql) {
+  if (!saveLabel.value.trim() || !props.currentQuery || !props.currentSql || !props.currentUserId) {
     return
   }
 
   try {
     saveLoading.value = true
     
-    const newQuery: SavedQuery = {
-      id: Date.now(), // In real app, this would be from the server
-      label: saveLabel.value.trim(),
-      query: props.currentQuery,
-      sql: props.currentSql,
+    const request: SaveQueryRequest = {
+      userId: props.currentUserId,
       applicationId: props.currentApplicationId || 1,
       eventId: props.currentEventId || 1,
-      userId: props.currentUserId || 'user123',
+      label: saveLabel.value.trim(),
+      nqlQuestion: props.currentQuery,
+      generatedSQL: props.currentSql,
       hasData: props.currentHasData || false,
-      thumbsUp: null,
       tokensUsed: props.currentTokensUsed || 0,
-      createdAt: new Date().toISOString(),
-      lastUsed: null,
-      useCount: 0
+      eventType: 'NLQ_GENERATION'
     }
 
-    // In a real app, this would call your API
-    // await axios.post('/api/saved-queries', newQuery)
+    const savedQuery = await savedQueriesService.saveQuery(request)
     
-    // For demo, save to localStorage
-    savedQueries.value.unshift(newQuery)
-    localStorage.setItem('savedQueries', JSON.stringify(savedQueries.value))
+    // Add to local list
+    savedQueries.value.unshift(savedQuery)
     
     // Reset form
     saveLabel.value = ''
@@ -156,6 +132,7 @@ const saveCurrentQuery = async () => {
     console.log('Query saved successfully!')
   } catch (error) {
     console.error('Failed to save query:', error)
+    alert('Failed to save query. Please try again.')
   } finally {
     saveLoading.value = false
   }
@@ -164,39 +141,35 @@ const saveCurrentQuery = async () => {
 const selectQuery = async (query: SavedQuery) => {
   try {
     // Update usage stats
+    await savedQueriesService.updateUsage(query.id)
+    
+    // Update local data
     query.lastUsed = new Date().toISOString()
     query.useCount++
     
-    // In real app, update on server
-    // await axios.patch(`/api/saved-queries/${query.id}`, { lastUsed: query.lastUsed, useCount: query.useCount })
-    
-    // Update localStorage
-    localStorage.setItem('savedQueries', JSON.stringify(savedQueries.value))
-    
-    emit('select-query', query.query)
+    emit('select-query', query.nqlQuestion)
   } catch (error) {
     console.error('Failed to update query usage:', error)
     // Still emit the query even if update fails
-    emit('select-query', query.query)
+    emit('select-query', query.nqlQuestion)
   }
 }
 
 const submitFeedback = async (queryId: number, isPositive: boolean) => {
   try {
+    await savedQueriesService.updateFeedback(queryId, isPositive)
+    
+    // Update local data
     const query = savedQueries.value.find(q => q.id === queryId)
-    if (!query) return
-    
-    query.thumbsUp = isPositive
-    
-    // In real app, send to server
-    // await axios.patch(`/api/saved-queries/${queryId}/feedback`, { thumbsUp: isPositive })
-    
-    // Update localStorage
-    localStorage.setItem('savedQueries', JSON.stringify(savedQueries.value))
+    if (query) {
+      query.thumbsUp = isPositive
+      query.feedbackTimestamp = new Date().toISOString()
+    }
     
     emit('feedback-submitted', queryId, isPositive)
   } catch (error) {
     console.error('Failed to submit feedback:', error)
+    alert('Failed to submit feedback. Please try again.')
   }
 }
 
@@ -204,13 +177,11 @@ const deleteQuery = async (queryId: number) => {
   if (!confirm('Are you sure you want to delete this saved query?')) return
   
   try {
-    // In real app, delete from server
-    // await axios.delete(`/api/saved-queries/${queryId}`)
-    
+    await savedQueriesService.deleteQuery(queryId)
     savedQueries.value = savedQueries.value.filter(q => q.id !== queryId)
-    localStorage.setItem('savedQueries', JSON.stringify(savedQueries.value))
   } catch (error) {
     console.error('Failed to delete query:', error)
+    alert('Failed to delete query. Please try again.')
   }
 }
 
@@ -224,7 +195,7 @@ const formatDate = (dateString: string) => {
 }
 
 const canSaveCurrentQuery = computed(() => {
-  return props.currentQuery && props.currentSql && saveLabel.value.trim()
+  return props.currentQuery && props.currentSql && saveLabel.value.trim() && props.currentUserId
 })
 
 // Lifecycle
@@ -267,9 +238,9 @@ onMounted(() => {
             type="text"
             placeholder="e.g., Top 20 participants with A names"
             class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-            maxlength="100"
+            maxlength="200"
           />
-          <div class="text-xs text-slate-500 mt-1">{{ saveLabel.length }}/100</div>
+          <div class="text-xs text-slate-500 mt-1">{{ saveLabel.length }}/200</div>
         </div>
         
         <div class="flex gap-2">
@@ -419,10 +390,10 @@ onMounted(() => {
 
               <!-- Query Text -->
               <div class="mb-3">
-                <p class="text-xs text-slate-600 line-clamp-2 mb-2">{{ query.query }}</p>
+                <p class="text-xs text-slate-600 line-clamp-2 mb-2">{{ query.nqlQuestion }}</p>
                 <details class="text-xs">
                   <summary class="cursor-pointer text-purple-600 hover:text-purple-700">View SQL</summary>
-                  <pre class="mt-2 p-2 bg-slate-800 text-slate-100 rounded text-xs overflow-x-auto">{{ query.sql }}</pre>
+                  <pre class="mt-2 p-2 bg-slate-800 text-slate-100 rounded text-xs overflow-x-auto">{{ query.generatedSQL }}</pre>
                 </details>
               </div>
 

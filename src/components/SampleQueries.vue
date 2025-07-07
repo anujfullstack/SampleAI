@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import { savedQueriesService, type SavedQuery } from '../services/savedQueriesService'
 
 interface Emits {
   (e: 'select-query', query: string): void
@@ -10,44 +11,64 @@ const emit = defineEmits<Emits>()
 const lastAskedQuery = ref('')
 const searchTerm = ref('')
 const isSearching = ref(false)
+const sampleQueries = ref<SavedQuery[]>([])
+const loading = ref(false)
+const selectedCategory = ref('all')
 
-const sampleQueries = [
-  "List Top 10 all active participants who have provided both an email and a phone number",
-  "Fetch top 10 participants who email is Gmail and who are not deleted and have both email and phone number with FirstName,LastName,Email,Phone Number",
-  "Show top 10 participants from the Participant table who are not deleted, have a non-empty LinkedIn profile URL, a valid FirstName and a Valid Email",
-  "Give me a top 10 maximum count of Non deleted Participants in Each ApplicationInstanceId",
-  "Retrieve top 10 participants whose email contains 'outlook' and are active (not deleted)",
-  "List Top 20 latest added participants who are not deleted and whose first or last name starts with the letter 'A', and who have both phone number and email having Application Id 1",
-  "Show all participants from the 'Engineering' group who have Interest for both 'Cloud Computing' and 'DevOps' events",
-  "List all participants who attended more than 2 events",
-  "Which participants joined event where event date in between 1 june 2024 to 01 September 2024",
-  "Which interest category has the highest number of registered participants?",
-  "How many events were held per month in 2024, grouped by interest category?",
-  "List the top 3 most attended events and how many participants joined them",
-  "Which participants registered for events in the last 6 months of 2024",
-  "List participants who registered for events more than 30 days after joining the company",
-  "Who are the most active marketers interested in AI?",
-  "Which participants from the Sales or Marketing group have attended an event in both June or September 2024?",
-  "Give me the list of top 5 participants and count of events they've attended, sorted by most active",
-  "Give me participant emails grouped by interest and Group category for the AI Conference 2024",
-  "List all participants interested in AI events",
-  "Show me participants from the Marketing group",
-  "Find all events with more than 5 interested participants",
-  "What are the most popular interests?"
-]
-
-const filteredQueries = computed(() => {
-  if (!searchTerm.value.trim()) {
-    return sampleQueries
-  }
-  return sampleQueries.filter(query => 
-    query.toLowerCase().includes(searchTerm.value.toLowerCase())
-  )
+// Available categories
+const categories = computed(() => {
+  const uniqueCategories = [...new Set(sampleQueries.value.map(q => q.category).filter(Boolean))]
+  return ['all', ...uniqueCategories]
 })
 
-const selectQuery = (query: string) => {
-  lastAskedQuery.value = query
-  emit('select-query', query)
+const filteredQueries = computed(() => {
+  let filtered = sampleQueries.value
+
+  // Filter by category
+  if (selectedCategory.value !== 'all') {
+    filtered = filtered.filter(q => q.category === selectedCategory.value)
+  }
+
+  // Filter by search term
+  if (searchTerm.value.trim()) {
+    const search = searchTerm.value.toLowerCase()
+    filtered = filtered.filter(q => 
+      q.label.toLowerCase().includes(search) ||
+      q.nqlQuestion.toLowerCase().includes(search)
+    )
+  }
+
+  return filtered.sort((a, b) => b.useCount - a.useCount) // Sort by popularity
+})
+
+const loadSampleQueries = async () => {
+  try {
+    loading.value = true
+    const queries = await savedQueriesService.getSampleQueries({
+      limit: 100 // Get more sample queries
+    })
+    sampleQueries.value = queries
+  } catch (error) {
+    console.error('Failed to load sample queries:', error)
+    // Fallback to hardcoded queries if API fails
+    sampleQueries.value = []
+  } finally {
+    loading.value = false
+  }
+}
+
+const selectQuery = async (query: SavedQuery) => {
+  lastAskedQuery.value = query.nqlQuestion
+  
+  try {
+    // Update usage count for sample queries
+    await savedQueriesService.updateUsage(query.id)
+    query.useCount++
+  } catch (error) {
+    console.error('Failed to update sample query usage:', error)
+  }
+  
+  emit('select-query', query.nqlQuestion)
 }
 
 const clearLastAsked = () => {
@@ -60,6 +81,11 @@ const handleSearch = () => {
     isSearching.value = false
   }, 300)
 }
+
+// Lifecycle
+onMounted(() => {
+  loadSampleQueries()
+})
 </script>
 
 <template>
@@ -89,7 +115,7 @@ const handleSearch = () => {
           "{{ lastAskedQuery }}"
         </p>
         <button 
-          @click="selectQuery(lastAskedQuery)"
+          @click="emit('select-query', lastAskedQuery)"
           class="mt-2 text-xs text-green-600 hover:text-green-700 font-medium flex items-center"
         >
           <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -118,6 +144,21 @@ const handleSearch = () => {
           </p>
         </div>
         
+        <!-- Category Filter -->
+        <div class="flex flex-wrap gap-2 mb-3">
+          <button
+            v-for="category in categories"
+            :key="category"
+            @click="selectedCategory = category"
+            class="text-xs px-3 py-1 rounded-lg transition-all capitalize"
+            :class="selectedCategory === category 
+              ? 'bg-blue-500 text-white' 
+              : 'bg-slate-100 text-slate-700 hover:bg-blue-100'"
+          >
+            {{ category === 'all' ? 'All Categories' : category }}
+          </button>
+        </div>
+        
         <!-- Search Box -->
         <div class="relative">
           <input
@@ -138,17 +179,44 @@ const handleSearch = () => {
 
       <!-- Query List -->
       <div class="space-y-2 max-h-96 overflow-y-auto">
+        <div v-if="loading" class="text-center py-8">
+          <div class="loading-spinner mx-auto mb-2"></div>
+          <p class="text-sm text-slate-600">Loading sample queries...</p>
+        </div>
+
+        <div v-else-if="filteredQueries.length === 0" class="text-center py-8 text-slate-500">
+          <svg class="w-12 h-12 mx-auto mb-3 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+          </svg>
+          <p class="text-sm">No queries found</p>
+          <p class="text-xs text-slate-400 mt-1">Try a different search term or category</p>
+        </div>
+
         <div
-          v-for="(query, index) in filteredQueries"
-          :key="index"
+          v-for="query in filteredQueries"
+          :key="query.id"
           @click="selectQuery(query)"
           class="group p-3 bg-slate-50 hover:bg-blue-50 rounded-lg border border-slate-200 hover:border-blue-300 cursor-pointer transition-all duration-200 hover:shadow-sm"
         >
           <div class="flex items-start justify-between">
             <div class="flex-1 min-w-0 pr-2">
-              <p class="text-sm text-slate-700 group-hover:text-blue-700 transition-colors leading-relaxed line-clamp-2">
-                {{ query }}
+              <div class="flex items-center gap-2 mb-1">
+                <h5 class="text-sm font-medium text-slate-800 group-hover:text-blue-700 transition-colors">
+                  {{ query.label }}
+                </h5>
+                <span v-if="query.category" class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
+                  {{ query.category }}
+                </span>
+              </div>
+              <p class="text-xs text-slate-600 group-hover:text-blue-600 transition-colors leading-relaxed line-clamp-2">
+                {{ query.nqlQuestion }}
               </p>
+              <div v-if="query.useCount > 0" class="flex items-center mt-1 text-xs text-slate-500">
+                <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/>
+                </svg>
+                Used {{ query.useCount }} times
+              </div>
             </div>
             <div class="flex-shrink-0">
               <svg class="w-4 h-4 text-slate-400 group-hover:text-blue-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -156,15 +224,6 @@ const handleSearch = () => {
               </svg>
             </div>
           </div>
-        </div>
-
-        <!-- No Results -->
-        <div v-if="filteredQueries.length === 0" class="text-center py-8 text-slate-500">
-          <svg class="w-12 h-12 mx-auto mb-3 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-          </svg>
-          <p class="text-sm">No queries found</p>
-          <p class="text-xs text-slate-400 mt-1">Try a different search term</p>
         </div>
       </div>
 
@@ -189,23 +248,23 @@ const handleSearch = () => {
       <ul class="space-y-2 text-xs text-slate-600">
         <li class="flex items-start">
           <span class="text-blue-500 mr-2">•</span>
-          <span>Be specific with participant criteria</span>
+          <span>Sample queries are loaded from the database</span>
         </li>
         <li class="flex items-start">
           <span class="text-blue-500 mr-2">•</span>
-          <span>Use date ranges for time-based queries</span>
+          <span>Popular queries appear first</span>
         </li>
         <li class="flex items-start">
           <span class="text-blue-500 mr-2">•</span>
-          <span>Ask for counts, top results, or groupings</span>
+          <span>Use categories to find specific types of queries</span>
         </li>
         <li class="flex items-start">
           <span class="text-blue-500 mr-2">•</span>
-          <span>Combine multiple conditions for complex queries</span>
+          <span>Save your successful queries to the repository</span>
         </li>
         <li class="flex items-start">
           <span class="text-blue-500 mr-2">•</span>
-          <span>Save successful queries to your repository</span>
+          <span>Give feedback with thumbs up/down</span>
         </li>
       </ul>
     </div>
